@@ -20,4 +20,4 @@
     根据 LGPL 的要求，您可以自行从 https://gmplib.org 获取 GMP 的源代码并重新链接。本程序不改变 GMP 的许可证条款。
 
 作者：WJYwangjingyi（洛谷 uid 828666，https://luogu.com.cn/user/828666）
-更新时间：2026-05-29
+更新时间：2026-10-4

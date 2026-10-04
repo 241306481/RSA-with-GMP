@@ -1,0 +1,3 @@
+# 将 gmpxx.h, gmp.h, libgmpxx.a,libgmp.a 放于 .\gmp
+g++ 加密程序.cpp -o 加密程序.exe -std=c++11 -Wl,--stack=67108864 -pthread -finput-charset=GBK -fexec-charset=GBK -Ofast -s -fstack-protector-all -I".\gmp" -L".\gmp" -static -lgdi32 -lcomctl32 -lgmpxx -lgmp -lcomdlg32 -lbcrypt
+g++ 解密程序.cpp -o 解密程序.exe -std=c++11 -Wl,--stack=67108864 -pthread -finput-charset=GBK -fexec-charset=GBK -Ofast -s -fstack-protector-all -I".\gmp" -L".\gmp" -static -lgmpxx -lgmp -lbcrypt

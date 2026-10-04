@@ -14,7 +14,7 @@
 完整许可协议文本请参见：https://creativecommons.org/licenses/by-nc/4.0/deed.zh
 
 附加声明：
-1. 本程序仅供学习、研究 RSA 加解密原理或在小型场景使用，不建议用于保护真实敏感数据。
+1. 本程序仅供学习、研究 RSA 加解密原理或在小型非商用场景使用，不建议用于保护真实敏感数据。
 2. 作者不对使用本程序造成的任何直接或间接损失承担责任。
 3. 本程序静态链接了第三方库 GMP（GNU Multiple Precision Arithmetic Library），该库遵循 GNU LGPL 许可证。
     根据 LGPL 的要求，您可以自行从 https://gmplib.org 获取 GMP 的源代码并重新链接。本程序不改变 GMP 的许可证条款。

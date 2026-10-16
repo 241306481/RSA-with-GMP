@@ -201,7 +201,10 @@ inline unsigned int rndd(){unsigned int x=321564596;BYTE b[4];
 	x^=random_device{}()^get_time();else for(BYTE c:b)x=x<<8|c^x>>24;return x;
 }
 inline void init_mt19937(mt19937 &rnd){
-	unsigned int data[624];for(unsigned int &x:data)x=rndd();seed_seq seed(data,data+624);rnd.seed(seed);
+	unsigned int data[624];
+	if(!BCRYPT_SUCCESS(BCryptGenRandom(NULL,(PUCHAR)data,sizeof(data),BCRYPT_USE_SYSTEM_PREFERRED_RNG))){
+		random_device rd;for(unsigned int &x:data)x=rd()^get_time();
+	}seed_seq seed(data,data+624);rnd.seed(seed);
 }
 inline void init_state(gmp_randstate_t &state){
 	mpz_class seed;gmp_randinit_default(state);for(int i=0;i<32;i++)seed=seed<<32|rndd();gmp_randseed(state,seed.get_mpz_t());

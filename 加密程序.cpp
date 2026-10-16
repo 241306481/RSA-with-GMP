@@ -7,11 +7,11 @@
 #include<commctrl.h>
 #include<shlobj.h>
 using namespace std;
-const int N=100,M=200;int cnt=max(4u,min(thread::hardware_concurrency(),16u)),totol,nex,tot;atomic<bool>running(true),isrun;
-mpz_class n,p,q,e,d,prime[N];gmp_randstate_t state;ifstream fin;ofstream fout;double sstim,stim,tim;char a;atomic<int>now;bool automod,silent;
-string input[256],in="明文.txt",out="密文.txt",s,mod,savepath;queue<string>output[256];mt19937 rnd;atomic<HWND>table;INITCOMMONCONTROLSEX icex;
-const char c[95]="w7)OE$_AT%l;\'smgLu,2krNFieWVJ`p-#{ZQ.t0q}j5K8!\\G=XI*M?S4hbc9nf/]|vz@:6~B(<U^Co\"3H[+x>RdPaYyD1&";
-const char c2[65]="3dIgAVkjcrH+8wxPSU5vTJBzNReYMtO6mlqQh92uKpW7FGoZnb1yEfL=sD4CX0ia";
+const int N=100,M=200;int cnt=max(4u,min(thread::hardware_concurrency(),16u)),totol,nex,tot,bytes;atomic<bool>running(true),isrun;
+mpz_class n,p,q,e,d,prime[N];gmp_randstate_t state;ifstream fin;ofstream fout;double sstim,stim,tim;atomic<int>now;atomic<HWND>table;
+string input[256],in="明文.txt",out="密文.txt",s,mod,savepath;queue<string>output[256];mt19937 rnd;INITCOMMONCONTROLSEX icex;
+const char c[95]="w7)OE$_AT%l;\'smgLu,2krNFieWVJ`p-#{ZQ.t0q}j5K8!\\G=XI*M?S4hbc9nf/]|vz@:6~B(<U^Co\"3H[+x>RdPaYyD1&";char a;
+const char c2[65]="3dIgAVkjcrH+8wxPSU5vTJBzNReYMtO6mlqQh92uKpW7FGoZnb1yEfL=sD4CX0ia";bool automod,silent,in_binary,out_binary;
 inline string compress(mpz_class x){
 	if(x==0)return {c[0]};string s;while(x)s+=c[mpz_class(x%94).get_si()],x/=94;reverse(s.begin(),s.end());return s;
 }
@@ -20,6 +20,11 @@ inline string compress2(mpz_class x){
 }
 inline mpz_class decompress(const string &s){mpz_class num=0;for(char a:s)num=(num<<6)+int(find(c2,c2+64,a)-c2);return num;}
 inline string to_string(const mpz_class &x){ostringstream sout;sout<<x;return sout.str();}
+inline bool isconsole(){
+	static char b=-1;if(~b)return b;
+	HANDLE h=GetStdHandle(STD_INPUT_HANDLE);DWORD mode;
+	return b=h!=INVALID_HANDLE_VALUE&&GetConsoleMode(h,&mode)!=0;
+}
 inline void copy(HWND hWnd){
 	HWND hList=GetDlgItem(hWnd,1006);if(!hList)return;
 	int selectedIndex=ListView_GetNextItem(hList,-1,LVNI_SELECTED);
@@ -138,11 +143,15 @@ inline wstring to_time(){wostringstream wsout;
 	if(sstim)wsout<<L" | 总耗时："<<tim-sstim<<"s ( "<<int((tim-sstim)/3600)<<"h "<<int((tim-sstim)/60)%60<<"m "<<fmod(tim-sstim,60)<<"s )";
 	return wsout.str();
 }
-[[noreturn]] inline void my_pause(){gmp_randclear(state);
-	print<<L"请按回车键继续..."<<flush;long long a,b;if(!silent)do a=get_time(),getline(cin,s),b=get_time();while(b-a<1&&cin.good());exit(0);
+[[noreturn]] inline void my_pause(){
+	gmp_randclear(state);
+	if(isconsole()&&!silent){
+		print<<L"请按回车键继续..."<<flush;long long a,b;
+		do a=get_time(),getline(cin,s),b=get_time();while(b-a<1&&cin.good());
+	}exit(0);
 }
-template<typename T>inline void open(T &f,const string &s){
-	f.open(s);if(!f.is_open())print<<L"无法打开 \""<<s<<L"\" ，请检查访问权限，确保文件存在\n"<<flush,my_pause();
+template<typename T>inline void open(T &f,const string &s,const ios_base::openmode &mode,const bool &bin){
+	f.open(s,bin?mode|ios::binary:mode);if(!f.is_open())print<<L"无法打开 \""<<s<<L"\" ，请检查访问权限，确保文件存在\n"<<flush,my_pause();
 }
 template<class T>inline void create(T &&f){
 	for(int i=0;i<cnt;i++){try{thread(f,i).detach();}catch(const exception &e){running=false,
@@ -151,7 +160,10 @@ template<class T>inline void create(T &&f){
 inline mpz_class fast_pow(const mpz_class &x,const mpz_class &y){
 	mpz_class ans;mpz_powm(ans.get_mpz_t(),x.get_mpz_t(),y.get_mpz_t(),n.get_mpz_t());return ans;
 }
-inline string zh(const mpz_class &x){return compress(fast_pow(x,e));}
+inline string zh(const mpz_class &x){
+	const mpz_class y=fast_pow(x,e);if(!out_binary)return compress(y);
+	string s(bytes,'\0');mpz_export(&s[0],nullptr,-1,1,0,0,y.get_mpz_t());return s;
+}
 inline mpz_class gcd(const mpz_class &x,const mpz_class &y){mpz_class g;mpz_gcd(g.get_mpz_t(),x.get_mpz_t(),y.get_mpz_t());return g;}
 inline tuple<mpz_class,mpz_class>exgcd(const mpz_class &x,const mpz_class &y){
 	mpz_class g,a,b;mpz_gcdext(g.get_mpz_t(),a.get_mpz_t(),b.get_mpz_t(),x.get_mpz_t(),y.get_mpz_t());return {a,b};
@@ -228,7 +240,9 @@ inline void read_arg(const int argc,const char *const argv[]){
     -silent                不输出信息
     -threads <N>           指定线程数（ 1-256 ），若不指定或无效则使用默认值
     -in   <filepath>       指定明文路径
+    -in-binary             以二进制读取明文
     -out  <filepath>       指定密文路径
+    -out-binary            以二进制写入密文
     -save -no              不保存私钥（如果有）到文件，而是输出到控制台
     -save -null            不保存私钥（如果有）到文件，也不输出到控制台
     -save -auto            自动保存私钥（如果有）到文件，只在失败时输出到控制台
@@ -265,7 +279,8 @@ inline void read_arg(const int argc,const char *const argv[]){
 		}else if(mod=="-in"||mod=="-out"){
 			if(++i==argc){print<<L"警告：位于第 "<<j<<" 个参数："<<mod<<" 后期望 <filepath> ，但没有找到\n"<<flush;continue;}
 			if(mod=="-in")in=argv[i];else out=argv[i];
-		}else if(mod=="-save"){
+		}else if(mod=="-in-binary")in_binary=1;else if(mod=="-out-binary")out_binary=1;
+		else if(mod=="-save"){
 			if(++i==argc){print<<L"警告：位于第 "<<j<<" 个参数：-save 后期望 -no, -null, -auto, <filepath> ，但没有找到\n"<<flush;continue;}
 			savepath=argv[i];
 		}else if(mod=="-key"||mod=="-KEY"){
@@ -297,9 +312,9 @@ inline void read_arg(const int argc,const char *const argv[]){
 }
 int main(int argc,char *argv[]){
 	read_arg(argc,argv);print.err=0;setcolor(0x07);stim=get_time()/1000.0;init_state(state);init_mt19937(rnd);
-	if(automod)print<<L"自动模式模式初始化中...\n"<<flush,get2();
+	if(automod)print<<L"自动模式初始化中...\n"<<flush,get2();
 	else if(n){if(p&&!e){while(true)if(e=get_rand()%n,1<e&&e<n&&gcd(e,(p-1)*(q-1))==1)break;d=getd();}}
-	else if(!_isatty(_fileno(stdin)))print.err=1,print<<L"警告：检测到当前非交互式终端，交互模式不可用，已切换到自动模式\n"<<flush,print.err=0,get2();
+	else if(!isconsole())print.err=1,print<<L"警告：检测到当前非交互式终端，交互模式不可用，已切换到自动模式\n"<<flush,print.err=0,get2();
 	else{
 		print<<L"初始化中（目标线程数："<<cnt<<L"）...\n"<<flush;icex.dwICC=ICC_LISTVIEW_CLASSES;
 		icex.dwSize=sizeof(INITCOMMONCONTROLSEX);InitCommonControlsEx(&icex);create(init);
@@ -333,25 +348,25 @@ int main(int argc,char *argv[]){
 	}
 	sstim=stim,print<<L"密钥：\n{\n\tn="<<compress2(n)<<",\n\te="<<compress2(e)<<(p?",\n\td="+compress2(d):"")<<"\n}\n";
 	if(p)s="("+compress2(p*q)+","+compress2(d)+")";else s.clear();clear(p);clear(q);clear(d);for(int i=0;i<N;++i)clear(prime[i]);
-	print<<L"统计中...\n"<<flush;open(fin,in);open(fout,out);stim=get_time()/1000.0;
+	print<<L"统计中...\n"<<flush;open(fin,in,ios::in,in_binary);open(fout,out,ios::out,out_binary);stim=get_time()/1000.0;
 	while(fin.get(a)){input[totol%cnt].push_back(a);
 		if(++totol>=nex)nex+=rnd()%100000,tim=get_time()/1000.0,print<<L"进度: 已找到 "<<totol<<L" 字符 | "<<to_time()<<"\r"<<flush;
 	}
-	tim=get_time()/1000.0;fin.close();nex=0;print<<L"进度: 已找到 "<<totol<<L" 字符 | "<<to_time()
-		<<L"\n统计完毕，加密中（目标线程数："<<cnt<<L"）...\n"<<flush;stim=get_time()/1000.0;
-	tot=totol%cnt*(totol/cnt%M==0)+(totol/cnt+M-1)/M*cnt;create(work);
+	tim=get_time()/1000.0;fin.close();nex=0;print<<L"进度: 已找到 "<<totol<<L" 字符 | "<<to_time()<<L"\n统计完毕，加密中（目标线程数："
+		<<cnt<<L"）...\n"<<flush;stim=get_time()/1000.0;tot=totol%cnt*(totol/cnt%M==0)+(totol/cnt+M-1)/M*cnt;
+	if(out_binary)bytes=(mpz_sizeinbase(n.get_mpz_t(),2)+7)/8;create(work);
 	while(1){
 		const int copy=now;if(copy==tot)break;if(copy>=nex)nex=min(totol,max(copy,nex)+int(rnd()%1000)),
 		tim=get_time()/1000.0,print<<to_process(copy,tot)<<" | "<<to_time()<<"\r"<<flush;sleep(10);
 	}
 	tim=get_time()/1000.0,print<<to_process(tot,tot)<<" | "<<to_time()<<L"\n加密完毕，写入文件中...\n"<<flush;nex=0;stim=get_time()/1000.0;
 	for(int i=0;i<tot;i++){
-		fout<<output[i%cnt].front()<<" ",output[i%cnt].pop();if(i>=nex)nex=min(totol,nex+int(rnd()%10000)),
-		tim=get_time()/1000.0,print<<to_process(i,tot)<<" | "<<to_time()<<"\r"<<flush;
+		mod=move(output[i%cnt].front()),output[i%cnt].pop();if(!out_binary)fout<<mod<<" ";else fout.write(mod.data(),bytes);
+		if(i>=nex)nex=min(totol,nex+int(rnd()%10000)),tim=get_time()/1000.0,print<<to_process(i,tot)<<" | "<<to_time()<<"\r"<<flush;
 	}
 	fout.close();tim=get_time()/1000.0,print<<to_process(tot,tot)<<" | "<<to_time()<<L"\n写入完毕，"<<flush;
 	if(!s.empty()){
-		if(savepath.empty()&&!_isatty(_fileno(stdin)))print<<L"警告：检测到当前非交互式终端，已切换为自动保存\n"<<flush,savepath="-auto";
+		if(savepath.empty()&&!isconsole())print<<L"警告：检测到当前非交互式终端，已切换为自动保存\n"<<flush,savepath="-auto";
 		if(savepath=="-null")a=0;else if(savepath=="-no")a=1;else if(!savepath.empty())print<<L"自动保存私钥中..."<<flush,a=save();
 		else{print<<L"是否保存私钥到文件？(Yes/No)（只检测第一个字符）："<<flush;getline(cin,mod),cin.clear();
 			while(mod.empty()||(mod=toupper(mod[0]),mod!="Y"&&mod!="N"))print<<L"输入无效，请重新输入："<<flush,getline(cin,mod),cin.clear();

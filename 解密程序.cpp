@@ -5,15 +5,20 @@
 #include<gmpxx.h>
 #include<windows.h>
 using namespace std;
-const int M=200;int cnt=max(4u,min(thread::hardware_concurrency(),16u)),totol,nex,cntt;atomic<int>now,tot;
-mt19937 rnd;mpz_class n,d;queue<string>input[256];string a,in="密文.txt",out="明文.txt",output2[256];bool silent;
-queue<pair<short,string>>output[256];ifstream fin;ofstream fout;atomic<bool>running(true);double sstim,stim,tim;
+const int M=200;int cnt=max(4u,min(thread::hardware_concurrency(),16u)),totol,nex,cntt,bytes;atomic<int>now,tot;
+mt19937 rnd;mpz_class n,d;queue<string>input[256];string a,in="密文.txt",out="明文.txt",output2[256];double sstim,stim,tim;
+queue<pair<short,string>>output[256];ifstream fin;ofstream fout;atomic<bool>running(true);bool silent,in_binary,out_binary;
 inline mpz_class fast_pow(const mpz_class &x,const mpz_class &y){mpz_class ans;
 	mpz_powm(ans.get_mpz_t(),x.get_mpz_t(),y.get_mpz_t(),n.get_mpz_t());return ans;}
 const char c[95]="w7)OE$_AT%l;\'smgLu,2krNFieWVJ`p-#{ZQ.t0q}j5K8!\\G=XI*M?S4hbc9nf/]|vz@:6~B(<U^Co\"3H[+x>RdPaYyD1&";
 const char c2[65]="3dIgAVkjcrH+8wxPSU5vTJBzNReYMtO6mlqQh92uKpW7FGoZnb1yEfL=sD4CX0ia";
 inline mpz_class decompress(const string &s){mpz_class num=0;for(char a:s)num=num*94+mpz_class(int(find(c,c+95,a)-c));return num;}
 inline mpz_class decompress2(const string &s){mpz_class num=0;for(char a:s)num=(num<<6)+mpz_class(int(find(c2,c2+64,a)-c2));return num;}
+inline bool isconsole(){
+	static char b=-1;if(~b)return b;
+	HANDLE h=GetStdHandle(STD_INPUT_HANDLE);DWORD mode;
+	return b=h!=INVALID_HANDLE_VALUE&&GetConsoleMode(h,&mode)!=0;
+}
 inline void Output(const wstring s){
 	DWORD bytesWritten;HANDLE hConsole=GetStdHandle(STD_OUTPUT_HANDLE);
 	WriteConsoleW(hConsole,s.c_str(),s.size(),&bytesWritten,NULL);
@@ -45,16 +50,22 @@ inline wstring to_time(){wostringstream wsout;
 	return wsout.str();
 }
 [[noreturn]] inline void my_pause(){
-	print<<L"请按回车键继续..."<<flush;long long a,b;if(!silent)do a=get_time(),getline(cin,::a),b=get_time();while(b-a<1&&cin.good());exit(0);
+	if(isconsole()&&!silent){
+		print<<L"请按回车键继续..."<<flush;long long a,b;
+		do a=get_time(),getline(cin,::a),b=get_time();while(b-a<1&&cin.good());
+	}exit(0);
 }
-template<typename T>inline void open(T &f,const string &s){
-	f.open(s);if(!f.is_open())print<<L"无法打开 \""<<s<<L"\" ，请检查访问权限，确保文件存在\n",my_pause();
+template<typename T>inline void open(T &f,const string &s,const ios_base::openmode &mode,const bool &bin){
+	f.open(s,bin?mode|ios::binary:mode);if(!f.is_open())print<<L"无法打开 \""<<s<<L"\" ，请检查访问权限，确保文件存在\n"<<flush,my_pause();
 }
 template<class T>inline void create(T &&f){
 	for(int i=0;i<cnt;i++){try{thread(f,i).detach();}catch(const exception &e){running=false,
 		print<<L"创建第 "<<i+1<<L" 个线程失败\n请尝试重启此程序\n详细信息："<<e.what()<<"\n"<<flush,my_pause();}}
 }
-inline mpz_class zh(const string &x){return fast_pow(decompress(x),d);}
+inline mpz_class zh(const string &s){
+	mpz_class y;if(in_binary)mpz_import(y.get_mpz_t(),s.size(),-1,1,0,0,s.data());
+    else y=decompress(s);return fast_pow(y,d);
+}
 inline mpz_class read(const string &s){mpz_class x;istringstream sin(s);sin>>x;return x;}
 inline int read2(const string &s){int x;istringstream sin(s);sin>>x;return x;}
 inline void read3(const string&s,mpz_class f(const string&)){n=f(s.substr(1,s.find(',')-1));d=f(s.substr(s.find(',')+1,s.size()-s.find(',')-2));}
@@ -89,11 +100,14 @@ inline string tolower(string s){for(char &c:s)c=tolower(c);return s;}
 inline void read_arg(const int argc,const char *const argv[]){
 	for(int i=1,j=1;i<argc;j=++i){
 		if(a=argv[i],a=="-h"||a=="-help"){
-			print<<LR"helpinfo(    -h, -help              显示帮助
+			print<<LR"helpinfo(
+    -h, -help              显示帮助
     -silent                不输出信息
     -threads <N>           指定线程数（ 1-256 ），若不指定或无效则使用默认值
     -in   <filepath>       指定密文路径
+    -in-binary             以二进制读取密文
     -out  <filepath>       指定明文路径
+    -out-binary            以二进制写入明文
     -key                   指定 (n,d) 的十进制
     -n                     指定 n 的十进制
     -d                     指定 d 的十进制
@@ -119,7 +133,8 @@ inline void read_arg(const int argc,const char *const argv[]){
 		}else if(a=="-in"||a=="-out"){
 			if(++i==argc){print<<L"警告：位于第 "<<j<<" 个参数："<<a<<" 后期望 <filepath> ，但没有找到\n"<<flush;continue;}
 			if(a=="-in")in=argv[i];else out=argv[i];
-		}else if(a=="-key"||a=="-KEY"){
+		}else if(a=="-in-binary")in_binary=1;else if(a=="-out-binary")out_binary=1;
+		else if(a=="-key"||a=="-KEY"){
 			if(++i==argc){print<<L"警告：位于第 "<<j<<" 个参数："<<a<<" 后期望 (-s) <string>, -f <filepath> ，但没有找到\n"<<flush;continue;}
 			if(string(argv[i])=="-f"){
 				if(++i==argc){print<<L"警告：位于第 "<<i-1<<" 个参数：-f 后期望 <filepath> ，但没有找到\n"<<flush;continue;}ifstream fin(argv[i]);
@@ -147,9 +162,8 @@ inline void read_arg(const int argc,const char *const argv[]){
 int main(int argc,char *argv[]){
 	read_arg(argc,argv);print.err=0;sstim=get_time()/1000.0;init_mt19937(rnd);
 	if(!n){
-		if(!_isatty(_fileno(stdin)))print.err=1,print<<L"错误：检测到当前非交互式终端，交互模式不可用，\n"
-			L"请使用命令行参数或使用交互式终端启动本程序\n"<<flush,exit(0);
-		print<<L"请选择输入的私钥类别：\n1. 输入自定义私钥 (n,d)\n2: 输入加密程序提供的私钥 (n,d)\n"<<flush;
+		if(!isconsole())print.err=1,print<<L"错误：检测到当前非交互式终端，\n请使用命令行参数，或使用交互式终端\n"<<flush,exit(1);
+		print<<L"请选择输入的私钥类别：\n1. 输入自定义私钥 (n,d)\n2. 输入加密程序提供的私钥 (n,d)\n"<<flush;
 		getline(cin,a),cin.clear();while(a!="1"&&a!="2")print<<L"输入无效，请重新输入："<<flush,getline(cin,a),cin.clear();
 		if(a=="1"){
 			print<<L"请输入自定义私钥 (n,d)："<<flush,getline(cin,a),cin.clear();
@@ -161,8 +175,14 @@ int main(int argc,char *argv[]){
 			n=decompress2(a.substr(1,a.find(',')-1)),d=decompress2(a.substr(a.find(',')+1,a.size()-a.find(',')-2));
 		}
 	}
-	print<<L"统计中...\n";open(fin,in);open(fout,out);stim=get_time()/1000.0;
-	while(fin>>a){input[totol%cnt].push(a);
+	print<<L"统计中...\n";open(fin,in,ios::in,in_binary);open(fout,out,ios::out,out_binary);
+	if(in_binary)bytes=(mpz_sizeinbase(n.get_mpz_t(),2)+7)/8;stim=get_time()/1000.0,a.resize(bytes);
+	while(1){
+		if(in_binary){
+			fin.read(&a[0],bytes);if(fin.gcount()==0)break;
+			for(int i=fin.gcount();i<bytes;i++)a[i]=rnd();
+		}else if(!(fin>>a))break;
+		input[totol%cnt].push(a);
 		if(++totol>=nex)nex+=rnd()%100000,tim=get_time()/1000.0,print<<L"进度: 已找到 "<<totol<<L" 块 | "<<to_time()<<"\r"<<flush;
 	}
 	tim=get_time()/1000.0;fin.close();nex=0;print<<L"进度: 已找到 "<<totol<<L" 块 | "<<to_time()

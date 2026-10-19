@@ -4,8 +4,8 @@
 #include<io.h>
 #include<gmpxx.h>
 #include<windows.h>
-using namespace std;
-const int M=200;int cnt=max(4u,min(thread::hardware_concurrency(),16u)),totol,nex,cntt,bytes;atomic<int>now,tot;
+using namespace std;using ll=long long;
+const int M=200;int cnt=max(4u,min(thread::hardware_concurrency(),16u)),cntt;ll totol,bytes,tmp;atomic<ll>now,tot;
 mt19937 rnd;mpz_class n,d;queue<string>input[256];string a,in="密文.txt",out="明文.txt",output2[256];double sstim,stim,tim;
 queue<pair<short,string>>output[256];ifstream fin;ofstream fout;atomic<bool>running(true);bool silent,in_binary,out_binary;
 inline mpz_class fast_pow(const mpz_class &x,const mpz_class &y){mpz_class ans;
@@ -34,14 +34,13 @@ struct Print{
 	template<class T>Print& operator<<(const T &x){wsout<<x;return *this;}
 	Print& operator<<(const string &s){wsout<<to_wstring(s);return *this;}
 	Print& operator<<(const char *s){wsout<<to_wstring(s);return *this;}
-	void tie(int x){}
 	Print& operator<<(Print& (*manip)(Print&)){return manip(*this);}
 	Print& flush(){if(err||!silent)Output(wsout.str());wsout.clear();wsout.str(L"");return *this;}
 }print(1);
 Print& flush(Print &a){return a.flush();}
 inline void sleep(const int &x){this_thread::sleep_for(chrono::milliseconds(x));}
-inline long long get_time(){using namespace chrono;return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();}
-inline wstring to_process(const long long &a,const long long &b){
+inline ll get_time(){using namespace chrono;return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();}
+inline wstring to_process(const ll &a,const ll &b){
 	wostringstream wsout;wsout<<fixed<<setprecision(3)<<L"进度: "<<(b==0?100:a*100.0/b)<<"% ( "<<a<<" / "<<b<<" )";return wsout.str();
 }
 inline wstring to_time(){wostringstream wsout;
@@ -51,7 +50,7 @@ inline wstring to_time(){wostringstream wsout;
 }
 [[noreturn]] inline void my_pause(){
 	if(isconsole()&&!silent){
-		print<<L"请按回车键继续..."<<flush;long long a,b;
+		print<<L"请按回车键继续..."<<flush;ll a,b;
 		do a=get_time(),getline(cin,::a),b=get_time();while(b-a<1&&cin.good());
 	}exit(0);
 }
@@ -80,10 +79,6 @@ inline bool check2(const string &s){
 		.find_first_not_of(c2)==string::npos&&s.substr(s.find(',')+1,s.size()-s.find(',')-2).find_first_not_of(c2)==string::npos&&
 		(n=decompress2(s.substr(1,s.find(',')-1)))>mpz_class(1)<<2000&&(d=decompress2(s.substr(s.find(',')+1,s.size()-s.find(',')-2)),1<d&&d<n);
 }
-inline unsigned int rndd(){unsigned int x=321564596;BYTE b[4];
-	if(!BCRYPT_SUCCESS(BCryptGenRandom(NULL,b,sizeof(b),BCRYPT_USE_SYSTEM_PREFERRED_RNG)))
-	x^=random_device{}()^get_time();else for(BYTE c:b)x=x<<8|c^x>>24;return x;
-}
 inline void init_mt19937(mt19937 &rnd){
 	unsigned int data[624];
 	if(!BCRYPT_SUCCESS(BCryptGenRandom(NULL,(PUCHAR)data,sizeof(data),BCRYPT_USE_SYSTEM_PREFERRED_RNG))){
@@ -101,7 +96,10 @@ void work(int id){
 inline void clear(mpz_class &x){mpz_ptr z=x.get_mpz_t();if(z->_mp_d)SecureZeroMemory(z->_mp_d,z->_mp_alloc*sizeof(mp_limb_t));x=0;}
 inline string tolower(string s){for(char &c:s)c=tolower(c);return s;}
 inline void read_arg(const int argc,const char *const argv[]){
+	string s;mpz_class x;
 	for(int i=1,j=1;i<argc;j=++i){
+		auto need=[&](const string &s){print<<L"警告：位于第 "<<j<<" 个参数："<<a<<" 后期望 "<<s<<" ，但没有找到\n"<<flush;};
+		auto fail=[&](){print<<L"警告：位于第 "<<j<<" 个参数："<<a<<" 指定的值无效\n"<<flush;};
 		if(a=argv[i],a=="-h"||a=="-help"){
 			print<<LR"helpinfo(
     -h, -help              显示帮助
@@ -130,37 +128,29 @@ inline void read_arg(const int argc,const char *const argv[]){
 )helpinfo"<<flush,exit(0);
 		}else if(a=="-silent")silent=1;
 		else if(a=="-threads"){
-			if(++i==argc){print<<L"警告：位于第 "<<j<<" 个参数：-threads 后期望 <N> ，但没有找到\n"<<flush;continue;}
-			if(!check(a=argv[i])||a.size()>3||(j=read2(a),j==0||j>256))
-				{print<<L"警告：位于第 "<<i-1<<" 个参数：-threads 后 <N> 无效\n"<<flush;continue;}cnt=j;
+			if(++i==argc){need("<N>");continue;}if(!check(a=argv[i])||a.size()>3
+				||(j=read2(a),j==0||j>256)){j=i-1;fail();continue;}cnt=j;
 		}else if(a=="-in"||a=="-out"){
-			if(++i==argc){print<<L"警告：位于第 "<<j<<" 个参数："<<a<<" 后期望 <filepath> ，但没有找到\n"<<flush;continue;}
-			if(a=="-in")in=argv[i];else out=argv[i];
+			if(++i==argc){need("<filepath>");continue;}if(a=="-in")in=argv[i];else out=argv[i];
 		}else if(a=="-in-binary")in_binary=1;else if(a=="-out-binary")out_binary=1;
-		else if(a=="-key"||a=="-KEY"){
-			if(++i==argc){print<<L"警告：位于第 "<<j<<" 个参数："<<a<<" 后期望 (-s) <string>, -f <filepath> ，但没有找到\n"<<flush;continue;}
+		else if(s=tolower(a),s=="-key"||s=="-n"||s=="-d"){
+			if(++i==argc){need("(-s) <string>, -f <filepath>");continue;}
 			if(string(argv[i])=="-f"){
-				if(++i==argc){print<<L"警告：位于第 "<<i-1<<" 个参数：-f 后期望 <filepath> ，但没有找到\n"<<flush;continue;}ifstream fin(argv[i]);
-				if(!fin.is_open()){print<<L"警告：位于第 "<<i<<" 个参数：打开 -f 指定的文件 "<<argv[i]<<" 失败\n"<<flush;continue;}
-				if(!(fin>>a)){print<<L"警告：读取文件 "<<argv[i]<<" 失败\n"<<flush;continue;};fin.close();
-			}else{if(string(argv[i])=="-s"&&++i==argc){
-				print<<L"警告：位于第 "<<i-1<<" 个参数：-s 后期望 <string> ，但没有找到\n"<<flush;continue;}a=argv[i];}
-			if(string(argv[j])=="-key"&&!check1(a)||string(argv[j])=="-KEY"&&!check2(a)){
-				print<<L"警告：位于第 "<<j<<" 个参数："<<argv[j]<<" 指定的值无效\n"<<flush;continue;}
-			if(string(argv[j])=="-key")read3(a,read);else read3(a,decompress2);
-		}else if(a=tolower(a),a=="-n"||a=="-d"){
-			if(++i==argc){print<<L"警告：位于第 "<<j<<" 个参数："<<a<<" 后期望 (-s) <string>, -f <filepath> ，但没有找到\n"<<flush;continue;}
-			if(string(argv[i])=="-f"){
-				if(++i==argc){print<<L"警告：位于第 "<<i-1<<" 个参数：-f 后期望 <filepath> ，但没有找到\n"<<flush;continue;}ifstream fin(argv[i]);
-				if(!fin.is_open()){print<<L"警告：位于第 "<<i<<" 个参数：打开 -f 指定的文件 "<<argv[i]<<" 失败\n"<<flush;continue;}
-				if(!(fin>>a)){print<<L"警告：读取文件 "<<argv[i]<<" 失败\n"<<flush;continue;};fin.close();
-			}else{if(string(argv[i])=="-s"&&++i==argc){
-				print<<L"警告：位于第 "<<i-1<<" 个参数：-s 后期望 <string> ，但没有找到\n"<<flush;continue;}a=argv[i];}
-			static mpz_class x;if(islower(argv[j][1]))x=read(a);else x=decompress2(a);if(tolower(argv[j][1])=='n'){
-			if(x<=mpz_class(1)<<2000){print<<L"警告：位于第 "<<j<<L" 个参数："<<argv[j]<<" 指定的值无效\n"<<flush;continue;}n=x;}else d=x;
+				if(++i==argc){j=i-1;need("<filepath>");continue;}ifstream fin(argv[i]);
+				if(!fin.is_open()){print<<L"警告：位于第 "<<i<<" 个参数：打开指定的文件 "<<argv[i]<<" 失败\n"<<flush;continue;}
+				if(!(fin>>s)){print<<L"警告：位于第 "<<i<<" 个参数：读取文件 "<<argv[i]<<" 失败\n"<<flush;continue;}fin.close();
+			}else{if(string(argv[i])=="-s"&&++i==argc){j=i-1;need("<string>");continue;}s=argv[i];}
+			if(a=="-key"&&!check1(s)||a=="-KEY"&&!check2(s)||a.size()<3&&
+				(islower(a[1])&&!check(s)||s.find_first_not_of(c2)!=string::npos)){fail();continue;}
+			if(a.size()>2)if(a=="-key")read3(s,read);else read3(s,decompress2);
+			else{
+				if(islower(a[1]))x=read(s);else x=decompress2(s);s=tolower(a[1]);
+				if(s=="n"&&x>>2000==0){fail();continue;}if(s=="n")n=x;else d=x;
+			}
 		}else print<<L"警告：位于第 "<<i<<" 个参数：未知的 "<<a<<"\n"<<flush;
 	}
 	if(n&&!d)n=0,print<<L"警告：指定了 n ，但没有指定 d\n"<<flush;if(!n&&d)d=0,print<<L"警告：指定了 d ，但没有指定 n\n"<<flush;
+	if(in==out)print<<L"警告：读取文件与写入文件一致，将会覆盖写入\n"<<flush;
 }
 int main(int argc,char *argv[]){
 	read_arg(argc,argv);print.err=0;sstim=get_time()/1000.0;init_mt19937(rnd);
@@ -178,26 +168,46 @@ int main(int argc,char *argv[]){
 			n=decompress2(a.substr(1,a.find(',')-1)),d=decompress2(a.substr(a.find(',')+1,a.size()-a.find(',')-2));
 		}
 	}
-	print<<L"统计中...\n";open(fin,in,ios::in,in_binary);open(fout,out,ios::out,out_binary);
+	print<<L"统计中...\n";open(fin,in,ios::in,in_binary);if(in!=out)open(fout,out,ios::out,out_binary);
 	if(in_binary)bytes=(mpz_sizeinbase(n.get_mpz_t(),2)+7)/8;stim=get_time()/1000.0,a.resize(bytes);
-	while(1){
+	{
+		ll lst=0,t;
 		if(in_binary){
-			fin.read(&a[0],bytes);if(fin.gcount()==0)break;
-			for(int i=fin.gcount();i<bytes;i++)a[i]=rnd();
-		}else if(!(fin>>a))break;
-		input[totol%cnt].push(a);
-		if(++totol>=nex)nex+=rnd()%100000,tim=get_time()/1000.0,print<<L"进度: 已找到 "<<totol<<L" 块 | "<<to_time()<<"\r"<<flush;
+			vector<char>buf(bytes*4096);ll got,full,rest,idx=0;
+			while(fin.read(buf.data(),buf.size()),(got=fin.gcount())>0){
+				full=got/bytes,rest=got-full*bytes;
+				for(ll k=0;k<full;k++)input[idx].emplace(buf.data()+k*bytes,bytes),idx=(idx+1)%cnt;
+				totol+=full+(rest>0);
+				if(rest){
+					string last(buf.data()+full*bytes,rest);last.resize(bytes);
+					for(ll i=rest;i<bytes;i++)last[i]=rnd();
+					input[idx].push(move(last)),idx=(idx+1)%cnt;break;
+				}
+				if((t=get_time())-lst>=300)lst=t,tim=t/1000.0,
+					print<<L"进度: 已找到 "<<totol<<L" 块 | "<<to_time()<<"\r"<<flush;
+			}
+		}else while(fin>>a){
+			input[totol%cnt].push(a);++totol;
+			if((t=get_time())-lst>=300)lst=t,tim=t/1000.0,
+				print<<L"进度: 已找到 "<<totol<<L" 块 | "<<to_time()<<"\r"<<flush;
+		}
 	}
-	tim=get_time()/1000.0;fin.close();nex=0;print<<L"进度: 已找到 "<<totol<<L" 块 | "<<to_time()
-		<<L"\n统计完毕，解密中（目标线程数："<<cnt<<L"）...\n"<<flush;stim=get_time()/1000.0;create(work);
-	while(1){
-		const int copy=now;if(copy==totol)break;if(copy>=nex)nex=min(totol,max(copy,nex)+int(rnd()%1000)),
-		tim=get_time()/1000.0,print<<to_process(copy,totol)<<" | "<<to_time()<<"\r"<<flush;sleep(10);
-	}
-	tim=get_time()/1000.0,print<<to_process(totol,totol)<<" | "<<to_time()<<L"\n解密完毕，写入文件中...\n"<<flush;nex=0;clear(n);clear(d);stim=tim;
-	for(int i=0;i<totol;i++){const auto p=output[i%cnt].front();output[i%cnt].pop();output2[p.first]+=p.second,cntt=max(cntt,p.first+1);}
-	for(int i=0;i<tot;i++){if(i/cntt>=output2[i%cntt].size())fout<<char(rnd()&255);else fout<<output2[i%cntt][i/cntt];
-		if(i>=nex)nex=min(int(tot),nex+int(rnd()%1000000)),tim=get_time()/1000.0,print<<to_process(i,tot)<<" | "<<to_time()<<"\r"<<flush;
+	tim=get_time()/1000.0;fin.close();print<<L"进度: 已找到 "<<totol<<L" 块 | "<<to_time()<<L"\n";if(in==out)open(fout,out,ios::out,out_binary);
+	print<<L"统计完毕，解密中（目标线程数："<<cnt<<L"）...\n"<<flush;stim=get_time()/1000.0;create(work);
+	while((tmp=now)<totol)tim=get_time()/1000.0,print<<to_process(tmp,totol)<<" | "<<to_time()<<"\r"<<flush,sleep(300);
+	tim=get_time()/1000.0,print<<to_process(totol,totol)<<" | "<<to_time()<<L"\n解密完毕，写入文件中...\n"<<flush;tmp=0;clear(n);clear(d);stim=tim;
+	for(ll i=0;i<totol;i++){const auto p=output[i%cnt].front();output[i%cnt].pop();output2[p.first]+=p.second,cntt=max(cntt,p.first+1);}
+	{
+		string buf;buf.reserve(1<<20);ll lst=0,t;
+		for(ll i=0;i<tot;i++){
+			if(i/cntt>=output2[i%cntt].size())buf.push_back(char(rnd()&255));else buf.push_back(output2[i%cntt][i/cntt]);
+			if(buf.size()>=(1<<20)){
+				fout.write(buf.data(),buf.size()),buf.clear();
+				if((t=get_time())-lst>=300)lst=t,tim=t/1000.0,
+					print<<to_process(i,tot)<<" | "<<to_time()<<"\r"<<flush;
+			}
+		}
+		fout.write(buf.data(),buf.size());
 	}
 	for(int i=0;i<cntt;i++)string().swap(output2[i]);fout.close();tim=get_time()/1000.0;
 	print<<to_process(tot,tot)<<" | "<<to_time()<<L"\n写入完毕！可以关闭此程序\n",my_pause();

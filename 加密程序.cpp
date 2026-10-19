@@ -6,9 +6,9 @@
 #include<windows.h>
 #include<commctrl.h>
 #include<shlobj.h>
-using namespace std;
-const int N=100,M=200;int cnt=max(4u,min(thread::hardware_concurrency(),16u)),totol,nex,tot,bytes;atomic<bool>running(true),isrun;
-mpz_class n,p,q,e,d,prime[N];gmp_randstate_t state;ifstream fin;ofstream fout;double sstim,stim,tim;atomic<int>now;atomic<HWND>table;
+using namespace std;using ll=long long;
+const int N=100,M=200;int cnt=max(4u,min(thread::hardware_concurrency(),16u));ll totol,tot,bytes,tmp;atomic<bool>running(true),isrun;
+mpz_class n,p,q,e,d,prime[N];gmp_randstate_t state;ifstream fin;ofstream fout;double sstim,stim,tim;atomic<ll>now;atomic<HWND>table;
 string input[256],in="明文.txt",out="密文.txt",s,mod,savepath;queue<string>output[256];mt19937 rnd;INITCOMMONCONTROLSEX icex;
 const char c[95]="w7)OE$_AT%l;\'smgLu,2krNFieWVJ`p-#{ZQ.t0q}j5K8!\\G=XI*M?S4hbc9nf/]|vz@:6~B(<U^Co\"3H[+x>RdPaYyD1&";char a;
 const char c2[65]="3dIgAVkjcrH+8wxPSU5vTJBzNReYMtO6mlqQh92uKpW7FGoZnb1yEfL=sD4CX0ia";bool automod,silent,in_binary,out_binary;
@@ -55,7 +55,7 @@ LRESULT CALLBACK PrimeTableWndProc(HWND hWnd,UINT msg,WPARAM wParam,LPARAM lPara
 		case WM_NOTIFY:{
 			LPNMHDR nmhdr=(LPNMHDR)lParam;
 			if(nmhdr->idFrom==1006&&nmhdr->code==LVN_GETDISPINFO){
-				NMLVDISPINFO* plvdi=(NMLVDISPINFO*)lParam;long long itemIndex=plvdi->item.iItem;
+				NMLVDISPINFO* plvdi=(NMLVDISPINFO*)lParam;ll itemIndex=plvdi->item.iItem;
 				if(plvdi->item.mask&LVIF_TEXT)switch(plvdi->item.iSubItem){
 					case 0:snprintf(plvdi->item.pszText,200,"%lld",itemIndex);break;
 					case 1:snprintf(plvdi->item.pszText,200,"%s",to_string(prime[itemIndex]).c_str());break;
@@ -104,7 +104,6 @@ struct Print{
 	template<class T>Print& operator<<(const T &x){wsout<<x;return *this;}
 	Print& operator<<(const string &s){wsout<<to_wstring(s);return *this;}
 	Print& operator<<(const char *s){wsout<<to_wstring(s);return *this;}
-	void tie(int x){}
 	Print& operator<<(Print& (*manip)(Print&)){return manip(*this);}
 	Print& flush(){if(err||!silent)Output(wsout.str());wsout.clear();wsout.str(L"");return *this;}
 }print(1);
@@ -134,8 +133,8 @@ inline bool save(){
 	if(!(fout<<s))return print<<L"保存失败：写入文件失败\n",1;fout.close();return print<<L"保存成功\n",0;
 }
 inline void sleep(const int &x){this_thread::sleep_for(chrono::milliseconds(x));}
-inline long long get_time(){using namespace chrono;return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();}
-inline wstring to_process(const long long &a,const long long &b){
+inline ll get_time(){using namespace chrono;return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();}
+inline wstring to_process(const ll &a,const ll &b){
 	wostringstream wsout;wsout<<fixed<<setprecision(3)<<L"进度: "<<(b==0?100:a*100.0/b)<<"% ( "<<a<<" / "<<b<<" )";return wsout.str();
 }
 inline wstring to_time(){wostringstream wsout;
@@ -146,7 +145,7 @@ inline wstring to_time(){wostringstream wsout;
 [[noreturn]] inline void my_pause(){
 	gmp_randclear(state);
 	if(isconsole()&&!silent){
-		print<<L"请按回车键继续..."<<flush;long long a,b;
+		print<<L"请按回车键继续..."<<flush;ll a,b;
 		do a=get_time(),getline(cin,s),b=get_time();while(b-a<1&&cin.good());
 	}exit(0);
 }
@@ -168,8 +167,7 @@ inline mpz_class gcd(const mpz_class &x,const mpz_class &y){mpz_class g;mpz_gcd(
 inline tuple<mpz_class,mpz_class>exgcd(const mpz_class &x,const mpz_class &y){
 	mpz_class g,a,b;mpz_gcdext(g.get_mpz_t(),a.get_mpz_t(),b.get_mpz_t(),x.get_mpz_t(),y.get_mpz_t());return {a,b};
 }
-inline mpz_class get_rand(){mpz_class x;mpz_urandomb(x.get_mpz_t(),state,2048);return x;}
-inline void gete(){while(true)if(e=get_rand()%n,1<e&&e<n&&gcd(e,(p-1)*(q-1))==1)break;}
+inline void gete(){mpz_class m=(p-1)*(q-1);while(mpz_urandomb(e.get_mpz_t(),state,16),e<2||gcd(e,m)!=1);}
 inline mpz_class getd(){mpz_class x,y,m=(p-1)*(q-1);tie(x,y)=exgcd(e,m);return (x%m+m)%m;}
 inline void get(){
 	int x,y;do{while((x=rnd()%N)<2);p=prime[x],y=rnd()%(x-1),q=prime[y];}while(abs(p-q)>>100==0);n=p*q;gete();d=getd();
@@ -196,18 +194,17 @@ inline bool check5(const string &s){
 		.find_first_not_of(c2)==string::npos&&s.substr(s.find(',')+1,s.size()-s.find(',')-2).find_first_not_of(c2)==string::npos&&
 		(n=decompress(s.substr(1,s.find(',')-1)))>>2000!=0&&(e=decompress(s.substr(s.find(',')+1,s.size()-s.find(',')-2)),1<e&&e<n);
 }
-inline unsigned int rndd(){unsigned int x=321564596;BYTE b[4];
-	if(!BCRYPT_SUCCESS(BCryptGenRandom(NULL,b,sizeof(b),BCRYPT_USE_SYSTEM_PREFERRED_RNG)))
-	x^=random_device{}()^get_time();else for(BYTE c:b)x=x<<8|c^x>>24;return x;
-}
 inline void init_mt19937(mt19937 &rnd){
-	unsigned int data[624];
+	unsigned data[624];
 	if(!BCRYPT_SUCCESS(BCryptGenRandom(NULL,(PUCHAR)data,sizeof(data),BCRYPT_USE_SYSTEM_PREFERRED_RNG))){
-		random_device rd;for(unsigned int &x:data)x=rd()^get_time();
+		random_device rd;for(unsigned int &x:data)x=0x9EB5230Cu^rd()^get_time();
 	}seed_seq seed(data,data+624);rnd.seed(seed);
 }
 inline void init_state(gmp_randstate_t &state){
-	mpz_class seed;gmp_randinit_default(state);for(int i=0;i<32;i++)seed=seed<<32|rndd();gmp_randseed(state,seed.get_mpz_t());
+	gmp_randinit_default(state);mpz_class seed;unsigned data[256];
+	if(!BCRYPT_SUCCESS(BCryptGenRandom(NULL,(PUCHAR)data,sizeof(data),BCRYPT_USE_SYSTEM_PREFERRED_RNG))){
+		random_device rd;for(unsigned int &x:data)x=0xE20F4C0Fu^rd()^get_time();
+	}mpz_import(seed.get_mpz_t(),256,1,sizeof(unsigned),0,0,data);gmp_randseed(state,seed.get_mpz_t());
 }
 void init(const int &id){
 	gmp_randstate_t state;init_state(state);mpz_class x;
@@ -217,10 +214,10 @@ void init(const int &id){
 }
 void work(const int &id){
 	gmp_randstate_t state;init_state(state);mpz_class y;
-	for(int i=0;i<input[id].size();i+=M){
+	for(ll i=0;i<input[id].size();i+=M){
 		mpz_class x;mpz_urandomb(y.get_mpz_t(),state,1984-8*M);
-		for(int j=i;j<i+M;j++)x=(x<<8)|(j<input[id].size()?(unsigned char)(input[id][j]):0);
-		x|=(mpz_class(min(M,int(input[id].size())-i))<<8*M)|(mpz_class(id)<<8*M+8)|(y<<8*M+16);
+		for(ll j=i;j<i+M;j++)x=(x<<8)|(j<input[id].size()?(unsigned char)(input[id][j]):0);
+		x|=(mpz_class((int)min<ll>(M,input[id].size()-i))<<8*M)|(mpz_class(id)<<8*M+8)|(y<<8*M+16);
 		if(i+M>input[id].size())mpz_urandomb(y.get_mpz_t(),state,i+M-input[id].size()<<3),x|=y;
 		output[id].push(zh(x)),++now,Sleep(0);if(!running)break;
 	}
@@ -236,6 +233,8 @@ inline void clear(mpz_class &x){mpz_ptr z=x.get_mpz_t();if(z->_mp_d)SecureZeroMe
 inline string tolower(string s){for(char &c:s)c=tolower(c);return s;}
 inline void read_arg(const int argc,const char *const argv[]){
 	for(int i=1,j=1;i<argc;j=++i){
+		auto need=[&](const string &s){print<<L"警告：位于第 "<<j<<" 个参数："<<mod<<" 后期望 "<<s<<" ，但没有找到\n"<<flush;};
+		auto fail=[&](){print<<L"警告：位于第 "<<j<<" 个参数："<<mod<<" 指定的值无效\n"<<flush;};
 		if(mod=argv[i],mod=="-h"||mod=="-help"){
 			print<<LR"helpinfo(
     -h, -help              显示帮助
@@ -276,56 +275,45 @@ inline void read_arg(const int argc,const char *const argv[]){
 )helpinfo"<<flush,exit(0);
 		}else if(mod=="-auto")automod=1;else if(mod=="-silent")silent=1;
 		else if(mod=="-threads"){
-			if(++i==argc){print<<L"警告：位于第 "<<j<<" 个参数：-threads 后期望 <N> ，但没有找到\n"<<flush;continue;}
-			if(!check(mod=argv[i])||mod.size()>3||(j=read2(mod),j==0||j>256))
-				{print<<L"警告：位于第 "<<i-1<<" 个参数：-threads 后 <N> 无效\n"<<flush;continue;}cnt=j;
+			if(++i==argc){need("<N>");continue;}if(!check(mod=argv[i])||mod.size()>3
+				||(j=read2(mod),j==0||j>256)){j=i-1;fail();continue;}cnt=j;
 		}else if(mod=="-in"||mod=="-out"){
-			if(++i==argc){print<<L"警告：位于第 "<<j<<" 个参数："<<mod<<" 后期望 <filepath> ，但没有找到\n"<<flush;continue;}
-			if(mod=="-in")in=argv[i];else out=argv[i];
+			if(++i==argc){need("<filepath>");continue;}if(mod=="-in")in=argv[i];else out=argv[i];
 		}else if(mod=="-in-binary")in_binary=1;else if(mod=="-out-binary")out_binary=1;
 		else if(mod=="-save"){
-			if(++i==argc){print<<L"警告：位于第 "<<j<<" 个参数：-save 后期望 -no, -null, -auto, <filepath> ，但没有找到\n"<<flush;continue;}
-			savepath=argv[i];
-		}else if(mod=="-key"||mod=="-KEY"){
-			if(++i==argc){print<<L"警告：位于第 "<<j<<" 个参数："<<mod<<" 后期望 (-s) <string>, -f <filepath> ，但没有找到\n"<<flush;continue;}
+			if(++i==argc){need("-no, -null, -auto, <filepath>");continue;}savepath=argv[i];
+		}else if(s=tolower(mod),s=="-key"||s=="-p"||s=="-q"||s=="-n"||s=="-e"){
+			if(++i==argc){need("(-s) <string>, -f <filepath>");continue;}
 			if(string(argv[i])=="-f"){
-				if(++i==argc){print<<L"警告：位于第 "<<i-1<<" 个参数：-f 后期望 <filepath> ，但没有找到\n"<<flush;continue;}ifstream fin(argv[i]);
-				if(!fin.is_open()){print<<L"警告：位于第 "<<i<<" 个参数：打开 -f 指定的文件 "<<argv[i]<<" 失败\n"<<flush;continue;}
-				if(!(fin>>s)){print<<L"警告：读取文件 "<<argv[i]<<" 失败\n"<<flush;continue;};fin.close();
-			}else{if(string(argv[i])=="-s"&&++i==argc){
-				print<<L"警告：位于第 "<<i-1<<" 个参数：-s 后期望 <string> ，但没有找到\n"<<flush;continue;}s=argv[i];}
-			if(mod=="-key"&&!check4(s)||mod=="-KEY"&&!check5(s)){print<<L"警告：位于第 "<<j<<" 个参数："<<mod<<" 指定的值无效\n"<<flush;continue;}
-			if(mod=="-key")read3(s,read);else read3(s,decompress);
-		}else if(s=tolower(mod),s=="-p"||s=="-q"||s=="-n"||s=="-e"){
-			if(++i==argc){print<<L"警告：位于第 "<<j<<" 个参数："<<mod<<" 后期望 (-s) <string>, -f <filepath> ，但没有找到\n"<<flush;continue;}
-			if(string(argv[i])=="-f"){
-				if(++i==argc){print<<L"警告：位于第 "<<i-1<<" 个参数：-f 后期望 <filepath> ，但没有找到\n"<<flush;continue;}ifstream fin(argv[i]);
-				if(!fin.is_open()){print<<L"警告：位于第 "<<i<<" 个参数：打开 -f 指定的文件 "<<argv[i]<<" 失败\n"<<flush;continue;}
-				if(!(fin>>s)){print<<L"警告：读取文件 "<<argv[i]<<" 失败\n"<<flush;continue;}fin.close();
-			}else{if(string(argv[i])=="-s"&&++i==argc){
-				print<<L"警告：位于第 "<<i-1<<" 个参数：-s 后期望 <string> ，但没有找到\n"<<flush;continue;}s=argv[i];}
-			if(islower(mod[1])){if(check(s))d=read(s);else{print<<L"警告：位于第 "<<j<<" 个参数："<<mod<<" 指定的值无效\n"<<flush;continue;}}
-			else d=decompress(s);if(s=tolower(mod[1]),(s=="p"||s=="q")&&(d>>1000==0||!mpz_probab_prime_p(d.get_mpz_t(),25))||
-			s=="n"&&d>>2000==0){print<<L"警告：位于第 "<<j<<" 个参数："<<mod<<" 指定的值无效\n"<<flush;continue;}
-			if(s=="p")p=d;else if(s=="q")q=d;else if(s=="n")n=d;else e=d;
+				if(++i==argc){j=i-1;need("<filepath>");continue;}ifstream fin(argv[i]);
+				if(!fin.is_open()){print<<L"警告：位于第 "<<i<<" 个参数：打开指定的文件 "<<argv[i]<<" 失败\n"<<flush;continue;}
+				if(!(fin>>s)){print<<L"警告：位于第 "<<i<<" 个参数：读取文件 "<<argv[i]<<" 失败\n"<<flush;continue;}fin.close();
+			}else{if(string(argv[i])=="-s"&&++i==argc){j=i-1;need("<string>");continue;}s=argv[i];}
+			if(mod=="-key"&&!check4(s)||mod=="-KEY"&&!check5(s)||mod.size()<3&&
+				(islower(mod[1])&&!check(s)||s.find_first_not_of(c2)!=string::npos)){fail();continue;}
+			if(mod.size()>2)if(mod=="-key")read3(s,read);else read3(s,decompress);
+			else{
+				if(islower(mod[1]))d=read(s);else d=decompress(s);s=tolower(mod[1]);
+				if((s=="p"||s=="q")&&(d>>1000==0||!mpz_probab_prime_p(d.get_mpz_t(),25))||s=="n"&&d>>2000==0){fail();continue;}
+				if(s=="p")p=d;else if(s=="q")q=d;else if(s=="n")n=d;else e=d;
+			}
 		}else print<<L"警告：位于第 "<<i<<" 个参数：未知的 "<<mod<<"\n"<<flush;
 	}
 	if(n)p=q=0;else if(p&&q)n=p*q;else if(p)p=e=0,print<<L"警告：指定了 p ，但没有指定 q\n"<<flush;
-	else if(q)q=e=0,print<<L"警告：指定了 q ，但没有指定 p\n"<<flush;else if(e)e=0,print<<L"警告：指定了 e ，但没有指定 n 或 p, q\n"<<flush;
+	else if(q)q=e=0,print<<L"警告：指定了 q ，但没有指定 p\n"<<flush;
+	else if(e)e=0,print<<L"警告：指定了 e ，但没有指定 n 或 p, q\n"<<flush;
+	if(in==out)print<<L"警告：读取文件与写入文件一致，将会覆盖写入\n"<<flush;
 }
 int main(int argc,char *argv[]){
 	read_arg(argc,argv);print.err=0;setcolor(0x07);stim=get_time()/1000.0;init_state(state);init_mt19937(rnd);
 	if(automod)print<<L"自动模式初始化中...\n"<<flush,get2();
-	else if(n){if(p&&!e){while(true)if(e=get_rand()%n,1<e&&e<n&&gcd(e,(p-1)*(q-1))==1)break;d=getd();}}
+	else if(n){if(p&&!e){gete();d=getd();}}
 	else if(!isconsole())print.err=1,print<<L"警告：检测到当前非交互式终端，交互模式不可用，已切换到自动模式\n"<<flush,print.err=0,get2();
 	else{
 		print<<L"初始化中（目标线程数："<<cnt<<L"）...\n"<<flush;icex.dwICC=ICC_LISTVIEW_CLASSES;
 		icex.dwSize=sizeof(INITCOMMONCONTROLSEX);InitCommonControlsEx(&icex);create(init);
-		while(1){
-			const int copy=now;if(copy==N)break;if(copy>=nex)nex=min(N,max(copy,nex)+int(rnd()%100)),tim=get_time()/1000.0,
-			print<<to_process(copy,N)<<" | "<<to_time()<<"\r"<<flush;sleep(10);
-		}
-		sort(prime,prime+N);tim=get_time()/1000.0;now=nex=0;print<<to_process(N,N)<<" | "<<to_time()
+		while((tmp=now)<N)tim=get_time()/1000.0,print<<to_process(tmp,N)<<" | "<<to_time()<<"\r"<<flush,sleep(300);
+		sort(prime,prime+N);tim=get_time()/1000.0;now=tmp=0;print<<to_process(N,N)<<" | "<<to_time()
 			<<L"\n初始化完毕，请选择密钥生成模式（1. 自动随机生成；2. 手动输入或手动随机）："<<flush;
 		getline(cin,mod),cin.clear();while(mod!="1"&&mod!="2")print<<L"输入无效，请重新输入："<<flush,getline(cin,mod),cin.clear();
 		if(mod=="1")get(),print<<L"使用自动生成的随机";
@@ -340,7 +328,7 @@ int main(int argc,char *argv[]){
 				if(mod=="5")if(p!=0&&q!=0)Input(L" e",check3(s),e=read(s);)else print<<L"请先填写 p 与 q 再选择此步\n";
 				if(mod=="7"){e=0;do p=prime[rnd()%N];while(abs(p-q)>>100==0);}    if(mod=="8"){e=0;do q=prime[rnd()%N];while(abs(p-q)>>100==0);}
 				if(mod=="9")if(p!=0&&q!=0)gete();else print<<L"请先填写 p 与 q 再选择此步\n";    if(mod=="0")showPrimeTable();
-				if(mod=="10")Input(L"自定义 (n,e)",check4(s),read3(s,read);)    if(mod=="11")Input(L"本程序的 (n,e)",check4(s),read3(s,decompress);)
+				if(mod=="10")Input(L"自定义 (n,e)",check4(s),read3(s,read);)    if(mod=="11")Input(L"本程序的 (n,e)",check5(s),read3(s,decompress);)
 				if(p&&q)n=p*q;bool ok=n&&e;print<<L"当前数据：\n{";if(p)print<<"\n\tp="<<compress2(p);if(q)print<<(p?",":"")<<"\n\tq="<<compress2(q);
 				if(!p&&n)print<<"\n\tn="<<compress2(n);if(ok)print<<",\n\te="<<compress2(e);if(ok&&p)print<<",\n\td="<<compress2(d=getd());
 				print<<L"\n}\n请选择下一步";if(ok)print<<L"（当前可键入 -1 以确定并退出）";print<<L"："<<flush;getline(cin,mod),cin.clear();
@@ -351,21 +339,33 @@ int main(int argc,char *argv[]){
 	}
 	sstim=stim,print<<L"密钥：\n{\n\tn="<<compress2(n)<<",\n\te="<<compress2(e)<<(p?",\n\td="+compress2(d):"")<<"\n}\n";
 	if(p)s="("+compress2(p*q)+","+compress2(d)+")";else s.clear();clear(p);clear(q);clear(d);for(int i=0;i<N;++i)clear(prime[i]);
-	print<<L"统计中...\n"<<flush;open(fin,in,ios::in,in_binary);open(fout,out,ios::out,out_binary);stim=get_time()/1000.0;
-	while(fin.get(a)){input[totol%cnt].push_back(a);
-		if(++totol>=nex)nex+=rnd()%100000,tim=get_time()/1000.0,print<<L"进度: 已找到 "<<totol<<L" 字符 | "<<to_time()<<"\r"<<flush;
+	print<<L"统计中...\n"<<flush;open(fin,in,ios::in,in_binary);if(in!=out)open(fout,out,ios::out,out_binary);stim=get_time()/1000.0;
+	{
+		vector<char>buf(1<<20);ll idx=0,got,lst=0,t;
+		while(fin.read(buf.data(),buf.size()),(got=fin.gcount())>0){
+			for(ll i=0;i<got;i++)input[idx].push_back(buf[i]),idx=(idx+1)%cnt;
+			totol+=got;
+			if((t=get_time())-lst>=300)lst=t,tim=t/1000.0,
+				print<<L"进度: 已找到 "<<totol<<L" 字"<<(in_binary?L"节":L"符")<<" | "<<to_time()<<"\r"<<flush;
+		}
 	}
-	tim=get_time()/1000.0;fin.close();nex=0;print<<L"进度: 已找到 "<<totol<<L" 字符 | "<<to_time()<<L"\n统计完毕，加密中（目标线程数："
-		<<cnt<<L"）...\n"<<flush;stim=get_time()/1000.0;tot=totol%cnt*(totol/cnt%M==0)+(totol/cnt+M-1)/M*cnt;
-	if(out_binary)bytes=(mpz_sizeinbase(n.get_mpz_t(),2)+7)/8;create(work);
-	while(1){
-		const int copy=now;if(copy==tot)break;if(copy>=nex)nex=min(totol,max(copy,nex)+int(rnd()%1000)),
-		tim=get_time()/1000.0,print<<to_process(copy,tot)<<" | "<<to_time()<<"\r"<<flush;sleep(10);
-	}
-	tim=get_time()/1000.0,print<<to_process(tot,tot)<<" | "<<to_time()<<L"\n加密完毕，写入文件中...\n"<<flush;nex=0;stim=get_time()/1000.0;
-	for(int i=0;i<tot;i++){
-		mod=move(output[i%cnt].front()),output[i%cnt].pop();if(!out_binary)fout<<mod<<" ";else fout.write(mod.data(),bytes);
-		if(i>=nex)nex=min(totol,nex+int(rnd()%10000)),tim=get_time()/1000.0,print<<to_process(i,tot)<<" | "<<to_time()<<"\r"<<flush;
+	tim=get_time()/1000.0;fin.close();print<<L"进度: 已找到 "<<totol<<L" 字"<<(in_binary?L"节":L"符")<<" | "<<to_time()<<"\n";
+	if(in==out)open(fout,out,ios::out,out_binary);print<<L"统计完毕，加密中（目标线程数："<<cnt<<L"）...\n"<<flush;stim=get_time()/1000.0;
+	if(out_binary)bytes=(mpz_sizeinbase(n.get_mpz_t(),2)+7)/8;tot=totol%cnt*(totol/cnt%M==0)+(totol/cnt+M-1)/M*cnt;create(work);
+	while((tmp=now)<tot)tim=get_time()/1000.0,print<<to_process(tmp,tot)<<" | "<<to_time()<<"\r"<<flush,sleep(300);
+	tim=get_time()/1000.0,print<<to_process(tot,tot)<<" | "<<to_time()<<L"\n加密完毕，写入文件中...\n"<<flush;tmp=0;stim=get_time()/1000.0;
+	{
+		string buf;buf.reserve((1<<20)+100);ll lst=0,t;
+		for(ll i=0;i<tot;i++){
+			mod=move(output[i%cnt].front()),output[i%cnt].pop();
+			if(out_binary)buf.append(mod.data(),bytes);else buf+=mod,buf+=' ';
+			if(buf.size()>=(1<<20)){
+				fout.write(buf.data(),buf.size()),buf.clear();
+				if((t=get_time())-lst>=300)lst=t,tim=t/1000.0,
+					print<<to_process(i,tot)<<" | "<<to_time()<<"\r"<<flush;
+			}
+		}
+		fout.write(buf.data(),buf.size());
 	}
 	fout.close();tim=get_time()/1000.0,print<<to_process(tot,tot)<<" | "<<to_time()<<L"\n写入完毕，"<<flush;
 	if(!s.empty()){

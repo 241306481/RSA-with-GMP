@@ -1,4 +1,4 @@
-//-std=c++11 -Wl,--stack=67108864 -pthread -finput-charset=GBK -fexec-charset=GBK -Ofast -s -fstack-protector-all
+//-std=c++17 -Wl,--stack=67108864 -pthread -finput-charset=GBK -fexec-charset=GBK -Ofast -s -fstack-protector-all
 //-static -lgmpxx -lgmp -lbcrypt
 #include<bits/stdc++.h>
 #include<io.h>
@@ -78,15 +78,15 @@ inline void read_crt(const string &s,mpz_class f(const string&)){
 }
 inline bool check(const string &s){return !s.empty()&&s.find_first_not_of("0123456789")==string::npos;}
 inline bool check_key(const string &s,const bool &comp){
-	if(s.front()!='('||s.back()!=')'||s.find(',')==string::npos||s.find_first_of(',')!=s.find_last_of(','))return 0;
+	if(s.empty()||s.front()!='('||s.back()!=')'||s.find(',')==string::npos||s.find_first_of(',')!=s.find_last_of(','))return 0;
 	const string nn=s.substr(1,s.find(',')-1),ee=s.substr(s.find(',')+1,s.size()-s.find(',')-2);mpz_class n,e;
-	auto chk=[&comp](const string &s)->mpz_class{return s.find_first_not_of(comp?c2:"0123456789")==string::npos;};
+	auto chk=[&comp](const string &s)->bool{return s.find_first_not_of(comp?c2:"0123456789")==string::npos;};
 	auto dec=[&comp](const string &s)->mpz_class{return comp?decompress2(s):read(s);};
 	return chk(nn)&&chk(ee)&&(n=dec(nn))>>2000!=0&&(e=dec(ee),1<e&&e<n);
 }
 inline bool check_crt(const string &s,const bool &comp){
-	if(s.front()!='('||s.back()!=')'||count(s.begin(),s.end(),',')!=3)return 0;
-	auto chk=[&comp](const string &s)->mpz_class{return s.find_first_not_of(comp?c2:"0123456789")==string::npos;};
+	if(s.empty()||s.front()!='('||s.back()!=')'||count(s.begin(),s.end(),',')!=3)return 0;
+	auto chk=[&comp](const string &s)->bool{return s.find_first_not_of(comp?c2:"0123456789")==string::npos;};
 	auto dec=[&comp](const string &s)->mpz_class{return comp?decompress2(s):read(s);};
 	string pp,qq,dpp,dqq;mpz_class p,q,dp,dq;istringstream sin(s.substr(1,s.size()-2));
 	getline(sin,pp,',');getline(sin,qq,',');getline(sin,dpp,',');getline(sin,dqq,',');
@@ -101,10 +101,10 @@ inline void init_mt19937(mt19937 &rnd){
 }
 void work(int id){
 	while(!input[id].empty()){
-		mpz_class x=zh(input[id].front());int size=mpz_class(x>>8*M&255).get_si();
+		mpz_class x=zh(input[id].front());const int size=mpz_class(x>>8*M&255).get_si();
 		input[id].pop();output[id].push(make_pair(mpz_class(x>>8*M+8&255).get_si(),string()));
 		for(int i=M*8-8;i>=max(0,M*8-size*8);i-=8)output[id].back().second.push_back(mpz_class(x>>i&255).get_si());
-		++now,tot+=size;if(!running)break;
+		tot.fetch_add(size,memory_order_relaxed);now.fetch_add(1,memory_order_relaxed);Sleep(0);if(!running)break;
 	}
 }
 inline void clear(mpz_class &x){mpz_ptr z=x.get_mpz_t();if(z->_mp_d)SecureZeroMemory(z->_mp_d,z->_mp_alloc*sizeof(mp_limb_t));x=0;}
@@ -139,7 +139,7 @@ inline void read_arg(const int argc,const char *const argv[]){
     若有指定 crt ，则忽略 n, d
     有效的 n 需满足：大于 2^2000
     有效的 p, q 需满足：大于 2^1000 且为质数
-    有效的 dp, dq 需满足：分别位于 [1,p) 与 [1,q)
+    有效的 dp, dq 需满足：分别位于 [1,p-1) 与 [1,q-1)
     本程序不会检查 n, d 的有效性
 )helpinfo"<<flush,exit(0);
 		}else if(a=="-silent")silent=1;
@@ -186,7 +186,7 @@ int main(int argc,char *argv[]){
 	}
 	if(crt)n=p*q,mpz_invert(qinv.get_mpz_t(),q.get_mpz_t(),p.get_mpz_t());
 	print<<L"统计中...\n";open(fin,in,ios::in,in_binary);if(in!=out)open(fout,out,ios::out,out_binary);
-	if(in_binary)bytes=(mpz_sizeinbase(n.get_mpz_t(),2)+7)/8;stim=get_time()/1000.0,a.resize(bytes);
+	if(in_binary)bytes=(mpz_sizeinbase(n.get_mpz_t(),2)+7)/8;stim=get_time()/1000.0;
 	{
 		ll lst=0,t;
 		if(in_binary){

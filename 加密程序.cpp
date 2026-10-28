@@ -1,4 +1,4 @@
-//-std=c++11 -Wl,--stack=67108864 -pthread -finput-charset=GBK -fexec-charset=GBK -Ofast -s -fstack-protector-all
+//-std=c++17 -Wl,--stack=67108864 -pthread -finput-charset=GBK -fexec-charset=GBK -Ofast -s -fstack-protector-all
 //-static -lgdi32 -lcomctl32 -lgmpxx -lgmp -lcomdlg32 -lbcrypt
 #include<bits/stdc++.h>
 #include<io.h>
@@ -187,9 +187,9 @@ inline bool check1(const string &s){mpz_class x;return check(s)&&(x=read(s),0<=x
 inline bool check2(const string &s){mpz_class x;return check(s)&&(x=read(s),x>>1000!=0&&mpz_probab_prime_p(x.get_mpz_t(),25));}
 inline bool check3(const string &s){mpz_class x;return check(s)&&(x=read(s),1<x&&x<n&&gcd(x,(p-1)*(q-1))==1);}
 inline bool check_key(const string &s,const bool &comp){
-	if(s.front()!='('||s.back()!=')'||s.find(',')==string::npos||s.find_first_of(',')!=s.find_last_of(','))return 0;
+	if(s.empty()||s.front()!='('||s.back()!=')'||s.find(',')==string::npos||s.find_first_of(',')!=s.find_last_of(','))return 0;
 	const string nn=s.substr(1,s.find(',')-1),ee=s.substr(s.find(',')+1,s.size()-s.find(',')-2);mpz_class n,e;
-	auto chk=[&comp](const string &s)->mpz_class{return s.find_first_not_of(comp?c2:"0123456789")==string::npos;};
+	auto chk=[&comp](const string &s)->bool{return s.find_first_not_of(comp?c2:"0123456789")==string::npos;};
 	auto dec=[&comp](const string &s)->mpz_class{return comp?decompress(s):read(s);};
 	return chk(nn)&&chk(ee)&&(n=dec(nn))>>2000!=0&&(e=dec(ee),1<e&&e<n);
 }
@@ -212,13 +212,14 @@ void init(const int &id){
 	gmp_randclear(state);
 }
 void work(const int &id){
-	gmp_randstate_t state;init_state(state);mpz_class y;
+	gmp_randstate_t state;init_state(state);mpz_class x,y;unsigned char buf[M];
 	for(ll i=0;i<input[id].size();i+=M){
-		mpz_class x;mpz_urandomb(y.get_mpz_t(),state,1984-8*M);
-		for(ll j=i;j<i+M;j++)x=(x<<8)|(j<input[id].size()?(unsigned char)(input[id][j]):0);
+		mpz_urandomb(y.get_mpz_t(),state,1984-8*M);
+		for(ll j=i;j<i+M;j++)buf[j-i]=j<input[id].size()?input[id][j]:0;
+		mpz_import(x.get_mpz_t(),M,1,1,0,0,buf);
 		x|=(mpz_class((int)min<ll>(M,input[id].size()-i))<<8*M)|(mpz_class(id)<<8*M+8)|(y<<8*M+16);
 		if(i+M>input[id].size())mpz_urandomb(y.get_mpz_t(),state,i+M-input[id].size()<<3),x|=y;
-		output[id].push(zh(x)),++now,Sleep(0);if(!running)break;
+		output[id].push(zh(x));now.fetch_add(1,memory_order_relaxed);Sleep(0);if(!running)break;
 	}
 	string().swap(input[id]);gmp_randclear(state);
 }

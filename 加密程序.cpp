@@ -308,7 +308,7 @@ inline void read_arg(const int argc,const char *const argv[]){
 int main(int argc,char *argv[]){
 	read_arg(argc,argv);print.err=0;setcolor(0x07);stim=get_time()/1000.0;init_state(state);init_mt19937(rnd);
 	if(automod)print<<L"自动模式初始化中...\n"<<flush,get2();
-	else if(n){if(p&&!e){gete();d=getd();}}
+	else if(n){if(p){if(!e)gete();d=getd();}}
 	else if(!isconsole())print.err=1,print<<L"警告：检测到当前非交互式终端，交互模式不可用，已切换到自动模式\n"<<flush,print.err=0,get2();
 	else{
 		print<<L"初始化中（线程数："<<cnt<<L"）...\n"<<flush;icex.dwICC=ICC_LISTVIEW_CLASSES;
